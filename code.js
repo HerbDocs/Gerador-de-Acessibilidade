@@ -12,147 +12,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 figma.showUI(__html__, { width: 400, height: 270 });
 // Definição da família de fontes usada no plugin
 const FONT_FAMILY = "Inter";
-// Função para lidar com mensagens recebidas do plugin
-function handleMessage(message) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // Verifica se a mensagem recebida é do tipo 'criarNovoFrame'
-        if (message.type === 'criarNovoFrame') {
-            // Chama a função para criar um novo frame com base nos frames selecionados
-            yield criarFrameListaFramesSelecionados();
-        }
-    });
-}
-// Define a função de tratamento de mensagens para a UI
-figma.ui.onmessage = handleMessage;
-function handleSelectionChange() {
-    // Obtém a seleção atual na página
-    const selection = figma.currentPage.selection;
-    // Verifica se há frames selecionados
-    if (selection.length === 0) {
-        console.log("Nenhum frame selecionado.");
-        return;
-    }
-    // Imprime no console a lista de frames selecionados
-    console.log("Selecionado:");
-    for (const frame of selection) {
-        console.log(frame.name);
-    }
-}
-figma.on("selectionchange", () => {
-    // Chama a função para lidar com a mudança de seleção
-    handleSelectionChange();
-});
-// Função para criar um nó de texto com a fonte definida
-function criarTexto(texto) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // Carrega a fonte assincronamente
-        yield figma.loadFontAsync({ family: "Inter", style: "Regular" });
-        // Cria um nó de texto
-        const textoNode = figma.createText();
-        // Define a fonte do nó de texto
-        textoNode.fontName = { family: "Inter", style: "Regular" };
-        // Define o texto do nó de texto
-        textoNode.characters = texto;
-        // Retorna o nó de texto criado
-        return textoNode;
-    });
-}
-// Função para criar um novo frame com a lista de frames selecionados
-function criarFrameListaFramesSelecionados() {
-    return __awaiter(this, void 0, void 0, function* () {
-        // Obtém a seleção na página atual
-        const selection = figma.currentPage.selection;
-        // Verifica se há algum frame selecionado
-        if (selection.length === 0) {
-            console.log("Erro: Nenhum frame selecionado na página atual.");
-            return;
-        }
-        // Cria um novo frame para a lista de frames selecionados
-        const novoFrame = figma.createFrame();
-        // Define o nome e o layout do novo frame
-        novoFrame.name = "Lista de Frames Selecionados";
-        novoFrame.layoutMode = "VERTICAL"; // Define o layout como vertical
-        novoFrame.primaryAxisAlignItems = "MIN"; // Alinha os itens ao início do eixo primário
-        novoFrame.counterAxisAlignItems = "MIN"; // Alinha os itens ao início do eixo secundário
-        novoFrame.paddingTop = 32; // Define o padding superior como 32px
-        novoFrame.paddingBottom = 32; // Define o padding inferior como 32px
-        novoFrame.paddingLeft = 32; // Define o padding esquerdo como 32px
-        novoFrame.paddingRight = 32; // Define o padding direito como 32px
-        novoFrame.itemSpacing = 16; // Define o espaçamento entre os itens como 16px
-        novoFrame.resize(793.70, 1122.52);
-        // Itera sobre os frames selecionados
-        for (const frame of selection) {
-            // Verifica se o item é um frame
-            if (frame.type !== "FRAME")
-                continue;
-            // Cria um texto com o nome e o tipo do frame
-            const frameLabel = yield criarTexto(`- ${frame.name}, Tipo: ${tipoCamadaMap[frame.type] || "Desconhecido"}`);
-            // Adiciona o texto ao novo frame
-            novoFrame.appendChild(frameLabel);
-            // Processa as camadas dentro do frame atual
-            yield processarCamadas(frame, novoFrame, `  -`);
-        }
-        // Posiciona o novo frame e o torna selecionado na tela
-        novoFrame.x = 0;
-        novoFrame.y = 0;
-        figma.currentPage.selection = [novoFrame];
-        // Faz o viewport se ajustar ao novo frame
-        figma.viewport.scrollAndZoomIntoView([novoFrame]);
-        // Notifica o usuário sobre a criação do novo frame
-        figma.notify("Novo frame criado com a lista dos frames selecionados.");
-        // Imprime no console a lista de camadas detectadas no novo frame
-        logCamadas(novoFrame);
-    });
-}
-// Função recursiva para processar as camadas dentro de um frame
-function processarCamadas(frame, novoFrame, prefixo) {
-    return __awaiter(this, void 0, void 0, function* () {
-        for (const child of frame.children) {
-            // Obtém o tipo da camada ou define como "Desconhecido" se não mapeado
-            let tipoCamada = tipoCamadaMap[child.type] || "Desconhecido";
-            // Se o tipo da camada for um retângulo, define como "Retângulo"
-            if (child.type === "RECTANGLE") {
-                tipoCamada = "Retângulo";
-            }
-            // Verifica se o preenchimento é uma imagem e atualiza o tipo da camada
-            if (temPreenchimentoImagem(child)) {
-                tipoCamada = "Image";
-            }
-            // Cria um texto com o nome e o tipo da camada
-            const textoCamadaNode = yield criarTexto(`${prefixo} ${child.name}, Tipo: ${tipoCamada}`);
-            // Adiciona o texto ao novo frame
-            novoFrame.appendChild(textoCamadaNode);
-            // Se a camada for um frame ou grupo, processa suas camadas filhas recursivamente
-            if (child.type === "FRAME" || child.type === "GROUP") {
-                yield processarCamadas(child, novoFrame, `${prefixo}   -`);
-            }
-        }
-    });
-}
-// Função para verificar se o preenchimento de uma camada é uma imagem
-function temPreenchimentoImagem(camada) {
-    // Verifica se a propriedade 'fills' existe na camada
-    if (!("fills" in camada))
-        return false; // Verifica se a propriedade fills existe
-    // Verifica se a camada tem preenchimento
-    if (camada.fills.length === 0)
-        return false;
-    // Itera sobre os preenchimentos da camada
-    for (const fill of camada.fills) {
-        // Se o preenchimento for do tipo "IMAGE", retorna true
-        if (fill.type === "IMAGE")
-            return true;
-    }
-    // Se nenhum preenchimento de imagem for encontrado, retorna false
-    return false;
-}
-// Função para imprimir a lista de camadas no console
-function logCamadas(frame) {
-    console.log("Camadas no novo frame:");
-    for (const child of frame.children) {
-        console.log(child.name);
-    }
-}
 // Mapeamento dos tipos de camada para descrições mais legíveis
 const tipoCamadaMap = {
     "FRAME": "Frame",
@@ -171,3 +30,173 @@ const tipoCamadaMap = {
     "SLICE": "Slice",
     "CANVAS": "Canvas"
 };
+// Mapeamento das descrições personalizadas
+const descricaoPersonalizadaMap = {};
+// Inicializando o mapeamento com descrições padrões para elementos dinâmicos
+const nomesElementosDinamicosIDS = [
+    "Alert", "Sheet", "Action Button", "Contextual Button", "Directional Button", "FAB", "Favorite Button",
+    "Fixed Button", "Icon Button", "Like Button", "Main Button", "Shortcut Carousel", "Shortcut Grid",
+    "Card Selector List", "List Selector", "Banner Highlight", "Input Date Picker", "Home Header",
+    "Navigation Header", "Search Header", "Input text field", "Input text area", "Input currency",
+    "Slider currency", "Input search", "Select", "Likert", "Item accordion", "Item default", "Item selector",
+    "List", "Modal", "Pagination Dots", "Pagination Number", "Password", "Password Code", "Switch",
+    "Checkbox", "Radio button", "Tab", "Table", "Number Badge", "Tag", "Information (tooltip)"
+];
+// Inicializando o mapeamento com descrições padrões para elementos estáticos
+const nomesElementosEstaticosIDS = [
+    "Breadcrumb", "Card Base", "Divider", "Chart", "Icon", "Brand", "Avatar", "Slot", "Cardholder",
+    "Loading", "Shimmer", "Progress Bar", "Progress Tracker Item", "Progress Tracker Group", "Chip",
+    "Title", "Insights", "Subtitle", "Section", "Body", "Label", "Link", "Description (tooltip)"
+];
+// Populando o mapa de descrições personalizadas com descrições para elementos dinâmicos
+nomesElementosDinamicosIDS.forEach(nome => {
+    descricaoPersonalizadaMap[nome] = `Nome: ${nome}\nTipo: "Elemento Dinâmico IDS"\nTag HTML: (NULL)\nDescrição de Acessibilidade: (NULL)\nDiretriz WCAG: (NULL)`;
+});
+// Populando o mapa de descrições personalizadas com descrições para elementos estáticos
+nomesElementosEstaticosIDS.forEach(nome => {
+    descricaoPersonalizadaMap[nome] = `Nome: ${nome}\nTipo: "Elemento Estático iDS"\nTag HTML: (NULL)\nDescrição de Acessibilidade: (NULL)\nDiretriz WCAG: (NULL)`;
+});
+// Configura a resposta do plugin às mensagens da UI
+figma.ui.onmessage = (message) => __awaiter(void 0, void 0, void 0, function* () {
+    if (message.type === 'criarNovoFrame') {
+        yield criarFrameListaFramesSelecionados();
+        figma.ui.postMessage({ type: 'frameCreated' });
+    }
+});
+// Configurações adicionais para eventos do Figma
+figma.on("run", () => { });
+figma.on("selectionchange", () => {
+    const selection = figma.currentPage.selection;
+    console.log(selection.length ? "Selecionado:" : "Nenhum frame selecionado.");
+    selection.forEach(frame => console.log(frame.name));
+});
+// Função assíncrona para criar um nó de texto
+function criarTexto(texto_1, fontSize_1) {
+    return __awaiter(this, arguments, void 0, function* (texto, fontSize, isBold = false) {
+        yield figma.loadFontAsync({ family: "Inter", style: isBold ? "Bold" : "Regular" });
+        const textoNode = figma.createText();
+        textoNode.fontName = { family: "Inter", style: isBold ? "Bold" : "Regular" };
+        textoNode.fontSize = fontSize;
+        textoNode.characters = texto;
+        return textoNode;
+    });
+}
+// Função principal para criar um novo frame com uma lista dos frames selecionados
+function criarFrameListaFramesSelecionados() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const selection = figma.currentPage.selection.filter(node => node.type === "FRAME" || node.type === "INSTANCE");
+        if (selection.length === 0) {
+            console.log("Erro: Nenhum frame selecionado na página atual.");
+            return;
+        }
+        const xOffset = 200;
+        const maxX = Math.max(...selection.map(frame => frame.x + frame.width));
+        const novoFrame = figma.createFrame();
+        novoFrame.name = "Lista de Frames Selecionados";
+        novoFrame.layoutMode = "VERTICAL";
+        novoFrame.primaryAxisAlignItems = "MIN";
+        novoFrame.counterAxisAlignItems = "MIN";
+        novoFrame.paddingTop = 32;
+        novoFrame.paddingBottom = 32;
+        novoFrame.paddingLeft = 32;
+        novoFrame.paddingRight = 32;
+        novoFrame.itemSpacing = 16;
+        novoFrame.resize(595, novoFrame.height);
+        novoFrame.fills = [{ type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.95 } }];
+        novoFrame.x = maxX + xOffset;
+        novoFrame.y = selection[0].y;
+        for (const frame of selection) {
+            const tipoCamada = tipoCamadaMap[frame.type] || "Desconhecido";
+            const tagHtml = getTagHtml(frame.type);
+            let descricaoCamada = `Nome: ${frame.name}\nTipo: ${tipoCamada}\nTag HTML: ${tagHtml}\nDescrição de Acessibilidade: (NULL)\nDiretriz WCAG: (NULL)`;
+            if (descricaoPersonalizadaMap[frame.name]) {
+                descricaoCamada = descricaoPersonalizadaMap[frame.name];
+            }
+            else if (nomesElementosDinamicosIDS.some(nome => frame.name.includes(nome))) {
+                descricaoCamada = descricaoPersonalizadaMap[frame.name].replace("(NULL)", tagHtml);
+            }
+            else if (nomesElementosEstaticosIDS.some(nome => frame.name.includes(nome))) {
+                descricaoCamada = descricaoPersonalizadaMap[frame.name].replace("(NULL)", tagHtml);
+            }
+            const nomeCamada = yield criarTexto(frame.name, 24, true);
+            const tagHTML = yield criarTexto(`Tag HTML: ${tagHtml}`, 14);
+            const descricaoAcessibilidade = yield criarTexto(`Descrição de Acessibilidade: (NULL)`, 14);
+            const diretrizWCAG = yield criarTexto(`Diretriz WCAG: (NULL)`, 14);
+            const tipo = yield criarTexto(`Tipo: ${tipoCamada}`, 14);
+            novoFrame.appendChild(nomeCamada);
+            novoFrame.appendChild(tagHTML);
+            novoFrame.appendChild(descricaoAcessibilidade);
+            novoFrame.appendChild(diretrizWCAG);
+            novoFrame.appendChild(yield criarTexto("Tipo:", 14));
+            novoFrame.appendChild(tipo);
+            yield processarCamadas(frame, novoFrame, "  -");
+        }
+        novoFrame.resize(595, novoFrame.height);
+        novoFrame.layoutMode = "VERTICAL";
+        novoFrame.primaryAxisSizingMode = "FIXED";
+        novoFrame.counterAxisSizingMode = "AUTO";
+        figma.currentPage.appendChild(novoFrame);
+        figma.currentPage.selection = [novoFrame];
+        figma.viewport.scrollAndZoomIntoView([novoFrame]);
+        figma.notify("Novo frame criado com a lista dos frames selecionados.");
+        logCamadas(novoFrame);
+    });
+}
+// Função recursiva para processar as camadas dentro de um frame ou instância
+function processarCamadas(node, novoFrame, prefixo) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if ("children" in node) {
+            for (const child of node.children) {
+                let tipoCamada = tipoCamadaMap[child.type] || "Desconhecido";
+                const tagHtml = getTagHtml(child.type);
+                let descricaoCamada = `Nome: ${child.name}\nTipo: ${tipoCamada}\nTag HTML: ${tagHtml}\nDescrição de Acessibilidade: (NULL)\nDiretriz WCAG: (NULL)`;
+                if (descricaoPersonalizadaMap[child.name]) {
+                    descricaoCamada = descricaoPersonalizadaMap[child.name].replace("(NULL)", tagHtml);
+                }
+                else if (temPreenchimentoImagem(child)) {
+                    tipoCamada = "Image";
+                    descricaoCamada = `Nome: ${child.name}\nTipo: ${tipoCamadaMap["IMAGE"]}\nTag HTML: <img>\nDescrição de Acessibilidade: (NULL)\nDiretriz WCAG: (NULL)`;
+                }
+                const textoCamadaNode = yield criarTexto(descricaoCamada, 14);
+                novoFrame.appendChild(textoCamadaNode);
+                if (child.type === "FRAME" || child.type === "GROUP" || child.type === "INSTANCE") {
+                    yield processarCamadas(child, novoFrame, `${prefixo}   -`);
+                }
+            }
+        }
+    });
+}
+// Função para obter a tag HTML com base no tipo de camada
+function getTagHtml(tipo) {
+    switch (tipo) {
+        case "FRAME": return "<div>";
+        case "TEXT": return "<p>, <span>, <h1> a <h6>";
+        case "RECTANGLE": return "<div>, <section>";
+        case "ELLIPSE": return "<div>";
+        case "LINE": return "<hr>";
+        case "INSTANCE": return "<div>, <component>";
+        case "IMAGE": return "<img>";
+        case "GROUP": return "<div>, <section>";
+        case "COMPONENT": return "<div>, <component>";
+        case "BOOLEAN_OPERATION": return "<svg> com <path>";
+        case "VECTOR": return "<svg>";
+        case "STAR": return "<svg> com <polygon>";
+        case "POLYGON": return "<svg> com <polygon>";
+        case "SLICE": return "<div>";
+        case "CANVAS": return "<canvas>";
+        default: return "(NULL)";
+    }
+}
+// Verifica se a camada possui preenchimento de imagem
+function temPreenchimentoImagem(camada) {
+    if (!("fills" in camada))
+        return false;
+    if (camada.fills.length === 0)
+        return false;
+    return camada.fills.some((fill) => fill.type === "IMAGE");
+}
+// Função para logar as camadas no console
+function logCamadas(frame) {
+    console.log("Camadas no novo frame:");
+    frame.children.forEach(child => console.log(child.name));
+}

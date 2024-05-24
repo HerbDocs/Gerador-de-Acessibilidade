@@ -11,8 +11,9 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    height: 32vh;
+    height: 60vh;
     background-color: #f2f2f2;
+    position: relative;
   }
 
   h1 {
@@ -48,18 +49,71 @@
   button:hover {
     background-color: #b85c00;
   }
+
+  #loading {
+    display: none;
+    position: absolute;
+    top: 180px;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    color: #888;
+  }
+
+  .frame-list {
+    margin-top: 16px;
+  }
+
+  .frame-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .frame-item button {
+    margin-left: 8px;
+    padding: 8px;
+    background-color: #d9534f;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .frame-item button:hover {
+    background-color: #c9302c;
+  }
 </style>
 </head>
 <body>
-  <h1>Gerador de Acessibilidade</h1>
-  <h2>Este plugin cria uma novo frame imprimindo os nomes e tipos dos elementos dentro de uma layer selecionada.</h2>
-  <button id="btnCriarNovoFrame">Criar Novo Frame</button>
-  <h3>por Herbert Cardoso Ferreira</h3>
-</body>
-</html>
+  <div class="container">
+    <div><h1>Gerador de Acessibilidade</h1></div>
+    <div><h2>Este plugin cria um novo frame imprimindo os nomes e tipos dos elementos dentro de uma layer selecionada.</h2></div>
+    <div><button id="btnCriarNovoFrame">Criar Novo Frame</button></div>
+    <div><h3 id="loading">Carregando...</h3></div>
+  </div>
 
 <script>
-  document.getElementById("btnCriarNovoFrame").addEventListener("click", function() {
-      parent.postMessage({ pluginMessage: { type: 'criarNovoFrame' } }, '*');
-  }); 
+  const btnCriarNovoFrame = document.getElementById("btnCriarNovoFrame");
+  const loading = document.getElementById("loading");
+
+  // Função para criar um novo frame
+  btnCriarNovoFrame.addEventListener("click", function() {
+    loading.style.display = "block";
+    btnCriarNovoFrame.disabled = true;
+    parent.postMessage({ pluginMessage: { type: 'criarNovoFrame' } }, '*');
+  });
+
+  // Ouve mensagens do plugin
+  window.addEventListener("message", (event) => {
+    const message = event.data.pluginMessage;
+    if (message.type === "frameCreated") {
+      loading.style.display = "none";
+      btnCriarNovoFrame.disabled = false;
+    }
+  });
 </script>
+</body>
+</html>
